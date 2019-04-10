@@ -1,0 +1,34 @@
+#设置服务端口
+server:
+  port: 9996
+
+#eureka服务注册中心的配置
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8080/eureka-server/eureka/
+
+#服务的微服务名称
+spring:
+  application:
+    name: oauth2-server
+#mongodb配置
+  data:
+    mongodb:
+      host: 192.168.2.51
+      port: 27017
+      #设置了mongo需要用户密码登录
+      username: yb
+      password: yb
+      #注意,似乎不能增删操作mongo内置的那个几个库(实测admin无权增删),所以需要自己创建个库来用
+      database: app
+  #redis的连接配置
+  redis:
+    host: 192.168.2.51
+    port: 6379
+  #安全配置
+  security:
+    #oauth2配置
+    oauth2:
+      resource:
+        filter-order: 3
