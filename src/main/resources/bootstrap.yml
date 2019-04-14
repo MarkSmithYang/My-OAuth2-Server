@@ -6,7 +6,8 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8080/eureka-server/eureka/
+      defaultZone: http://eureka.didispace.com/eureka/
+#      defaultZone: http://localhost:8080/eureka-server/eureka/
 
 #服务的微服务名称
 spring:
@@ -15,13 +16,14 @@ spring:
 #mongodb配置
   data:
     mongodb:
-      host: 192.168.2.51
-      port: 27017
-      #设置了mongo需要用户密码登录
-      username: yb
-      password: yb
+#      host: 192.168.2.51
+#      port: 27017
+#      #设置了mongo需要用户密码登录
+#      username: yb
+#      password: yb
       #注意,似乎不能增删操作mongo内置的那个几个库(实测admin无权增删),所以需要自己创建个库来用
       database: app
+      host: localhost
   #redis的连接配置
   redis:
     host: 192.168.2.51
@@ -31,4 +33,6 @@ spring:
     #oauth2配置
     oauth2:
       resource:
+        #ResourceServer的Filter们的顺序
         filter-order: 3
+

@@ -50,11 +50,6 @@ public class UserInfoController {
         userInfoA.setRoles(new String[]{"ROLE_ADMIN", "ROLE_USER"});
         userInfoRepository.save(userInfoA);
 
-//        UserInfo userInfoB = new UserInfo();
-//        userInfoB.setUsername("admin");
-//        userInfoB.setPassword("admin");
-//        userInfoB.setRoles(new String[]{"ROLE_ADMIN", "ROLE_USER"});
-//        userInfoRepository.save(userInfoB);
     }
 
     /**

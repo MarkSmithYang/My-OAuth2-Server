@@ -1,6 +1,8 @@
 package com.yb.security.oauth.server.config;
 
 import com.yb.security.oauth.server.impl.UserDetailsServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,46 +29,51 @@ import javax.servlet.http.HttpServletResponse;
 @EnableGlobalMethodSecurity(prePostEnabled = true)//使用表达式实现方法级别的安全性有4个注解可用
 //@EnableGlobalAuthentication//这个应该是包含了上面的@EnableGlobalMethodSecurity的功能的,是个更大范围的控制
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+    private static final Logger log = LoggerFactory.getLogger(WebSecurityConfig.class);
 
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
 
     @Bean
-    public BCryptPasswordEncoder bCryptPasswordEncoder(){
+    public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        log.info("WebSecurityConfig======configure(HttpSecurity http)");
         //查了下发现是spring security 版本在5.0后就要加个PasswordEncoder了,官推是BCryptPasswordEncoder
-       auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder());
+        auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder());
     }
 
     /**
      * 这个方法是必要的,而且需要加@Bean注释,实例化一个AuthenticationManager,
      * 不然其他的地方就无法注入此类(实例)--实测(开始以为无关紧要)
+     *
      * @return
      * @throws Exception
      */
     @Bean
     @Override
     public AuthenticationManager authenticationManagerBean() throws Exception {
+        log.info("WebSecurityConfig======authenticationManagerBean()");
         return super.authenticationManagerBean();
     }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        log.info("WebSecurityConfig======configure(HttpSecurity http)");
         http.csrf().and().httpBasic().disable()
                 //设置无权限访问时的响应提示,默认是403的无权访问
-                .exceptionHandling().authenticationEntryPoint((request,response,exception)->{
-            response.setCharacterEncoding("UTF-8");
-            response.setHeader("Content-Type", "application/json;charset=UTF-8");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getOutputStream().write("请登录".getBytes());
-        }).and()
+//                .exceptionHandling().authenticationEntryPoint((request, response, exception) -> {
+//            response.setCharacterEncoding("UTF-8");
+//            response.setHeader("Content-Type", "application/json;charset=UTF-8");
+//            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+//            response.getOutputStream().write("请登录".getBytes());
+//        }).and()
                 .authorizeRequests()
                 //这里设置了OPTIONS方法可以通过,实际肯定不会这样的
-                .antMatchers(HttpMethod.OPTIONS,"/","/**").permitAll()
+                .antMatchers(HttpMethod.OPTIONS, "/", "/**").permitAll()
                 .anyRequest().authenticated();
     }
 

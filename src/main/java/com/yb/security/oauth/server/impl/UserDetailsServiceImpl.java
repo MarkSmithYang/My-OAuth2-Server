@@ -2,6 +2,8 @@ package com.yb.security.oauth.server.impl;
 
 import com.yb.security.oauth.server.model.UserInfo;
 import com.yb.security.oauth.server.repository.UserInfoRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.User;
@@ -17,12 +19,14 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
+    private static final Logger log = LoggerFactory.getLogger(UserDetailsServiceImpl.class);
 
     @Autowired
     private UserInfoRepository userInfoRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        log.info("UserDetailsServiceImpl==========loadUserByUsername(String username)");
         //通过用户名获取用户信息
         UserInfo userInfo = userInfoRepository.findByUsername(username);
         //判断用户是否存在
