@@ -31,7 +31,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         UserInfo userInfo = userInfoRepository.findByUsername(username);
         //判断用户是否存在
         if (userInfo != null) {
-            return new User(userInfo.getUsername(), null, AuthorityUtils.createAuthorityList(userInfo.getRoles()));
+            return new User(userInfo.getUsername(), userInfo.getPassword(), AuthorityUtils.createAuthorityList(userInfo.getRoles()));
         } else {
             //抛出异常中断程序
             throw new UsernameNotFoundException("用户名或密码错误");

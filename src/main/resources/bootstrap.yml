@@ -26,7 +26,7 @@ spring:
       host: localhost
   #redis的连接配置
   redis:
-    host: 192.168.2.51
+    host: localhost
     port: 6379
   #安全配置
   security:

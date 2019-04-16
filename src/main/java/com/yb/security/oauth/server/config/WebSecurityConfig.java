@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -39,13 +40,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         return new BCryptPasswordEncoder();
     }
 
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        log.info("WebSecurityConfig======configure(HttpSecurity http)");
-        //查了下发现是spring security 版本在5.0后就要加个PasswordEncoder了,官推是BCryptPasswordEncoder
-        auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder());
-    }
-
     /**
      * 这个方法是必要的,而且需要加@Bean注释,实例化一个AuthenticationManager,
      * 不然其他的地方就无法注入此类(实例)--实测(开始以为无关紧要)
@@ -61,19 +55,26 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        log.info("WebSecurityConfig======configure(HttpSecurity http)");
+        //设置密码加密,查了下发现是spring security 版本在5.0后就要加个PasswordEncoder了,官推是BCryptPasswordEncoder
+        auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder());
+    }
+
+    @Override
     protected void configure(HttpSecurity http) throws Exception {
         log.info("WebSecurityConfig======configure(HttpSecurity http)");
         http.csrf().and().httpBasic().disable()
                 //设置无权限访问时的响应提示,默认是403的无权访问
-//                .exceptionHandling().authenticationEntryPoint((request, response, exception) -> {
-//            response.setCharacterEncoding("UTF-8");
-//            response.setHeader("Content-Type", "application/json;charset=UTF-8");
-//            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-//            response.getOutputStream().write("请登录".getBytes());
-//        }).and()
+                .exceptionHandling().authenticationEntryPoint((request, response, exception) -> {
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Type", "application/json;charset=UTF-8");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getOutputStream().write("请登录".getBytes());
+        }).and()
                 .authorizeRequests()
-                //这里设置了OPTIONS方法可以通过,实际肯定不会这样的
-                .antMatchers(HttpMethod.OPTIONS, "/", "/**").permitAll()
+                //这里设置了全部放过---
+                .antMatchers("/","/oauth/token").permitAll()
                 .anyRequest().authenticated();
     }
 
