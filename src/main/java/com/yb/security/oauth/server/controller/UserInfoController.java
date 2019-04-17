@@ -58,7 +58,7 @@ public class UserInfoController {
      * @param username
      * @return
      */
-    @PreAuthorize("isAuthenticated()")//已验证合法性后可访问
+    @PreAuthorize("hasRole('aa')")//已验证合法性后可访问
     @GetMapping("findByUsername")
     public UserInfo findByUsername(
             @NotBlank(message = "用户名不能为空")

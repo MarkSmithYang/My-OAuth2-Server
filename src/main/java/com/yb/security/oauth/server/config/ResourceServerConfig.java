@@ -14,6 +14,8 @@ import org.springframework.security.oauth2.config.annotation.web.configurers.Res
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.util.StringUtils;
 
+import javax.servlet.http.HttpServletResponse;
+
 /**
  * Description: 资源服务配置
  * EnableResourceServer----启用资源服务
@@ -36,6 +38,8 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
     @Override
     public void configure(HttpSecurity http) throws Exception {
         log.info("ResourceServerConfig======configure(HttpSecurity http)");
+        http.exceptionHandling().authenticationEntryPoint((request, response, exception) ->
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "请登录"));
         http.authorizeRequests().anyRequest().authenticated();
 //        http.requestMatcher(request -> {
 //            String token = request.getHeader("Authorization");

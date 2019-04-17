@@ -74,7 +74,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         }).and()
                 .authorizeRequests()
                 //这里设置了全部放过---
-                .antMatchers("/","/oauth/token").permitAll()
+                .antMatchers("/").permitAll()
                 .anyRequest().authenticated();
     }
 
