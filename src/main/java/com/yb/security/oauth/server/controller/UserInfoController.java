@@ -66,6 +66,8 @@ public class UserInfoController {
             @RequestParam String username) {
         //设定用户名唯一
         UserInfo result = userInfoRepository.findByUsername(username);
+        //置空密码,保护敏感信息
+        result.setPassword(null);
         return result;
     }
 

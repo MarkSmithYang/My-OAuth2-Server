@@ -4,15 +4,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.JwtAccessTokenConverterConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.common.DefaultOAuth2AccessToken;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
+import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
@@ -37,19 +40,20 @@ import java.util.*;
  * date 2019/4/9 00099:34
  */
 @Configuration
-//@EnableOAuth2Sso//OAuth2单点登录(SSO)
+//@EnableOAuth2Sso//OAuth2单点登录(SSO)//通过请求头带jwt的token的方式可实现sso
 @EnableAuthorizationServer
-public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdapter {
+public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter implements AuthorizationServerConfigurer {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationServerConfig.class);
-    //认证管理器
-    private final AuthenticationManager authenticationManager;
-    //redis连接工厂
-    private final RedisConnectionFactory redisConnectionFactory;
 
-    @Autowired
-    public AuthorizationServerConfig(AuthenticationManager authenticationManager, RedisConnectionFactory redisConnectionFactory) {
-        this.authenticationManager = authenticationManager;
-        this.redisConnectionFactory = redisConnectionFactory;
+    @Bean
+    @Override
+    public AuthenticationManager authenticationManagerBean() throws Exception {
+        return super.authenticationManagerBean();
+    }
+
+    @Bean
+    public BCryptPasswordEncoder bCryptPasswordEncoder(){
+        return new BCryptPasswordEncoder();
     }
 
     /**
@@ -73,9 +77,6 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
      */
     @Bean
     public JwtAccessTokenConverter jwtAccessTokenConverter() {
-        //都是函数式接口
-        //JwtAccessTokenConverterConfigurer
-        //JwtAccessTokenConverterRestTemplateCustomizer
         JwtAccessTokenConverter tokenConverter = new JwtAccessTokenConverter();
         //这里没有使用非对称加密(证书公钥秘钥)
         tokenConverter.setSigningKey("mySecret");
@@ -110,7 +111,8 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
     @Override
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
         log.info("AuthorizationServerConfig======configure(AuthorizationServerEndpointsConfigurer endpoints)=========");
-        endpoints.authenticationManager(new OAuth2AuthenticationManager());
+        //切记不能用new OAuth2AuthenticationManager()来用,不然就会报TokenPoint是空指针的错误
+        endpoints.authenticationManager(authenticationManagerBean());
         endpoints.tokenStore(tokenStore());
         //增强token(为token添加一些额外的信息)
         TokenEnhancer tokenEnhancer = (oAuth2AccessToken, oAuth2Authentication) -> {
@@ -128,31 +130,10 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
         };
         TokenEnhancerChain chain = new TokenEnhancerChain();
         chain.setTokenEnhancers(Arrays.asList(tokenEnhancer, jwtAccessTokenConverter()));
+        //实测这个对于jwt来说是必要的,不管不增强不增强,都需要设置这个才能正确获取到jwt的token,
+        //否则只是个UUID,是没实现jwt存储和转换的,这里仅仅只是使用了,普通的字符串作为秘钥签名的
+        //可以使用公私钥加密和增强(添加额外的内容到jwt里)来
         endpoints.tokenEnhancer(chain);
     }
-
-//
-//    @Override
-//    public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-//        endpoints.tokenStore(tokenStore()).tokenEnhancer(jwtTokenEnhancer()).authenticationManager(authenticationManager);
-//    }
-//
-//    @Autowired
-//    @Qualifier("authenticationManagerBean")
-//    private AuthenticationManager authenticationManager;
-//
-//    @Bean
-//    public TokenStore tokenStore() {
-//        return new JwtTokenStore(jwtTokenEnhancer());
-//    }
-//
-//    @Bean
-//    protected JwtAccessTokenConverter jwtTokenEnhancer() {
-//        //注意此处需要相应的jks文件
-//        KeyStoreKeyFactory keyStoreKeyFactory = new KeyStoreKeyFactory(new ClassPathResource("fzp-jwt.jks"), "fzp123".toCharArray());
-//        JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
-//        converter.setKeyPair(keyStoreKeyFactory.getKeyPair("fzp-jwt"));
-//        return converter;
-//    }
 
 }

@@ -25,20 +25,21 @@ import javax.servlet.http.HttpServletResponse;
  * author biaoyang
  * date 2019/4/9 000911:29
  */
-@Configuration
-@EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)//使用表达式实现方法级别的安全性有4个注解可用
+//@Configuration
+//@EnableWebSecurity
+//@EnableGlobalMethodSecurity(prePostEnabled = true)//使用表达式实现方法级别的安全性有4个注解可用
 //@EnableGlobalAuthentication//这个应该是包含了上面的@EnableGlobalMethodSecurity的功能的,是个更大范围的控制
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+public class WebSecurityConfig  {
+//public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     private static final Logger log = LoggerFactory.getLogger(WebSecurityConfig.class);
 
-    @Autowired
-    private UserDetailsServiceImpl userDetailsService;
-
-    @Bean
-    public BCryptPasswordEncoder bCryptPasswordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+//    @Autowired
+//    private UserDetailsServiceImpl userDetailsService;
+//
+//    @Bean
+//    public BCryptPasswordEncoder bCryptPasswordEncoder() {
+//        return new BCryptPasswordEncoder();
+//    }
 
     /**
      * 这个方法是必要的,而且需要加@Bean注释,实例化一个AuthenticationManager,
@@ -47,36 +48,36 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
      * @return
      * @throws Exception
      */
-    @Bean
-    @Override
-    public AuthenticationManager authenticationManagerBean() throws Exception {
-        log.info("WebSecurityConfig======authenticationManagerBean()");
-        return super.authenticationManagerBean();
-    }
+//    @Bean
+//    @Override
+//    public AuthenticationManager authenticationManagerBean() throws Exception {
+//        log.info("WebSecurityConfig======authenticationManagerBean()");
+//        return super.authenticationManagerBean();
+//    }
 
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        log.info("WebSecurityConfig======configure(HttpSecurity http)");
-        //设置密码加密,查了下发现是spring security 版本在5.0后就要加个PasswordEncoder了,官推是BCryptPasswordEncoder
-        auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder());
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        log.info("WebSecurityConfig======configure(HttpSecurity http)");
-        http.csrf().and().httpBasic().disable()
-                //设置无权限访问时的响应提示,默认是403的无权访问
-                .exceptionHandling().authenticationEntryPoint((request, response, exception) -> {
-            response.setCharacterEncoding("UTF-8");
-            response.setHeader("Content-Type", "application/json;charset=UTF-8");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getOutputStream().write("请登录".getBytes());
-        }).and()
-                .authorizeRequests()
-                //这里设置了全部放过---
-                .antMatchers("/").permitAll()
-                .anyRequest().authenticated();
-    }
+//    @Override
+//    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+//        log.info("WebSecurityConfig======configure(HttpSecurity http)");
+//        //设置密码加密,查了下发现是spring security 版本在5.0后就要加个PasswordEncoder了,官推是BCryptPasswordEncoder
+//        auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder());
+//    }
+//
+//    @Override
+//    protected void configure(HttpSecurity http) throws Exception {
+//        log.info("WebSecurityConfig======configure(HttpSecurity http)");
+//        http.csrf().and().httpBasic().disable()
+//                //设置无权限访问时的响应提示,默认是403的无权访问
+//                .exceptionHandling().authenticationEntryPoint((request, response, exception) -> {
+//            response.setCharacterEncoding("UTF-8");
+//            response.setHeader("Content-Type", "application/json;charset=UTF-8");
+//            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+//            response.getOutputStream().write("请登录".getBytes());
+//        }).and()
+//                .authorizeRequests()
+//                //这里设置了全部放过---
+//                .antMatchers("/").permitAll()
+//                .anyRequest().authenticated();
+//    }
 
     //下面是自定义的身份认证类,仅供参考
 //==============================================================================================
