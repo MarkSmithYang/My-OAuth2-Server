@@ -38,8 +38,11 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
     @Override
     public void configure(HttpSecurity http) throws Exception {
         log.info("ResourceServerConfig======configure(HttpSecurity http)");
-        http.exceptionHandling().authenticationEntryPoint((request, response, exception) ->
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "请登录"));
+        http.exceptionHandling().authenticationEntryPoint((request, response, exception) ->{
+            //设置编码格式,避免中文乱码输出
+            response.setCharacterEncoding("UTF-8");
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "请登录");
+                });
         http.authorizeRequests().anyRequest().authenticated();
 //        http.requestMatcher(request -> {
 //            String token = request.getHeader("Authorization");
