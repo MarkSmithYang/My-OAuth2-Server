@@ -52,7 +52,7 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter impl
     }
 
     @Bean
-    public BCryptPasswordEncoder bCryptPasswordEncoder(){
+    public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
@@ -73,6 +73,7 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter impl
 
     /**
      * 通过jwt存储token
+     *
      * @return
      */
     @Bean
@@ -101,11 +102,11 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter impl
                 //因为spring后面的版本必须配置加密算法,所以需要把登录密码加加密比对(实测需要加密内存里的密码)
                 .secret("$2a$10$hMija4S45OB2KXYvXxAt0.vXG9yq7yEiItOrKl6hhRHChbG8QdBwS")
                 .authorizedGrantTypes("password", "authorization_code", "refresh_token")
-                .and()
-                .withClient("web")
-                .scopes("all")
-                .secret("$2a$10$ec1kgB1yWRV0V1fV6gmyfe/BbJhgYQ/DEkMxeHsFGl2mzn3/lrsvi")
-                .authorizedGrantTypes("implicit");
+                .redirectUris("https://www.baidu.com")
+                //有效token的有效时间
+                .accessTokenValiditySeconds(60*30)
+                //刷新token的有效时间
+                .refreshTokenValiditySeconds(60*60*2);
     }
 
     @Override
@@ -120,7 +121,7 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter impl
             Map<String, Object> infos = new HashMap<>(10);
             //实测这个数据是和token和refresh_token是同级的,也就是没有在jwt的荷载里
             infos.put("username", "jack");
-            infos.put("jti",UUID.randomUUID().toString().replaceAll("-",""));
+            infos.put("jti", UUID.randomUUID().toString().replaceAll("-", ""));
             //设置额外的参数
             accessToken.setAdditionalInformation(infos);
             //设置过期时间
