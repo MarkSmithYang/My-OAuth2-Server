@@ -26,8 +26,8 @@ import javax.servlet.http.HttpServletResponse;
  * date 2019/4/9 000910:05
  */
 @Configuration
-@EnableResourceServer
 @AllArgsConstructor
+@EnableResourceServer
 public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
     private static final Logger log = LoggerFactory.getLogger(ResourceServerConfig.class);
 
@@ -44,7 +44,10 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
         log.info("ResourceServerConfig======configure(HttpSecurity http)");
         http.addFilterAfter(myFilter, SecurityContextPersistenceFilter.class);
         http.exceptionHandling().authenticationEntryPoint((request, response, exception) -> response.sendRedirect("/login"));
-        //注意指定没有登录的重定向跳转页需要放开才能正常跳转
-        http.authorizeRequests().antMatchers("/","/login").permitAll().anyRequest().authenticated();
+        //注意指定没有登录的重定向跳转页的接口需要放开才能正常跳转,否则报无限循环重定向错误,还需要放开登录接口的url,不然一直跳转登录页(相当于一直刷新登录页)
+        http.authorizeRequests().antMatchers("/**").permitAll()
+//        http.authorizeRequests().antMatchers("/","/login","/token","/loginAuthorize","/oauth/**").permitAll()
+//        http.authorizeRequests().antMatchers("/","/login","/userLogin","/oauth/authorize","/oauth/token").permitAll()
+                .anyRequest().authenticated();
     }
 }

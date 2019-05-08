@@ -13,6 +13,8 @@ public class JwtDic {
     public static final String REDIS_SET_JTI_KEY = "myJti";
     /**Authorization*/
     public static final String HEADERS_NAME = "Authorization";
+    /**ACCESS_TOKEN*/
+    public static final String ACCESS_TOKEN = "access_token";
     /**Bearer */
     public static final String HEADERS_VALUE_PREFIX = "Bearer ";
     /**Base64编码的secret*/

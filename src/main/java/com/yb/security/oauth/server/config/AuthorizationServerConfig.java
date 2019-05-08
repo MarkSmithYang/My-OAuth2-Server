@@ -1,37 +1,27 @@
 package com.yb.security.oauth.server.config;
 
+import com.yb.security.oauth.server.dic.ApplicationConfig;
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.JwtAccessTokenConverterConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.common.DefaultOAuth2AccessToken;
-import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
-import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
-import org.springframework.security.oauth2.provider.OAuth2Authentication;
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationManager;
-import org.springframework.security.oauth2.provider.token.DefaultAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.TokenEnhancer;
 import org.springframework.security.oauth2.provider.token.TokenEnhancerChain;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
-import org.springframework.security.oauth2.provider.token.store.redis.RedisTokenStore;
-
-import javax.servlet.http.HttpServletResponse;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Description: 授权服务配置
@@ -40,21 +30,14 @@ import java.util.*;
  * date 2019/4/9 00099:34
  */
 @Configuration
-//@EnableOAuth2Sso//OAuth2单点登录(SSO)//通过请求头带jwt的token的方式可实现sso
+@AllArgsConstructor
 @EnableAuthorizationServer
-public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter implements AuthorizationServerConfigurer {
+//@EnableOAuth2Sso//OAuth2单点登录(SSO)//通过请求头带jwt的token的方式可实现sso
+public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdapter {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationServerConfig.class);
-
-    @Bean
-    @Override
-    public AuthenticationManager authenticationManagerBean() throws Exception {
-        return super.authenticationManagerBean();
-    }
-
-    @Bean
-    public BCryptPasswordEncoder bCryptPasswordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    //来自于WebSecurityConfig
+    private final ApplicationConfig applicationConfig;
+    private final AuthenticationManager authenticationManager;
 
     /**
      * 令牌存储
@@ -92,29 +75,42 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter impl
                 .checkTokenAccess("isAuthenticated()");//验证获取Token的验证信息
     }
 
+    public static void main(String[] args) {
+        BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder();
+        String j = bCryptPasswordEncoder.encode("admin");
+        System.err.println(j);
+    }
+
     @Override
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
         log.info("AuthorizationServerConfig======configure(ClientDetailsServiceConfigurer clients)=========");
         //clients.jdbc(...)
         clients.inMemory()
-                .withClient("android")
+                .withClient("client")
                 .scopes("part")
                 //因为spring后面的版本必须配置加密算法,所以需要把登录密码加加密比对(实测需要加密内存里的密码)
-                .secret("$2a$10$hMija4S45OB2KXYvXxAt0.vXG9yq7yEiItOrKl6hhRHChbG8QdBwS")
+//                .secret("$2a$10$xdefvkbwoQ5mc34d.73WL.WIwX14rdJFFXGUIz9zk7P/FA5E29wPe")//android
+//                .secret("$2a$10$mDkWKlMzwI2Iw1lJUSNUmuzV0R.N0o3qrKPTvdqXxt.vyJ/Tykuy2")//client
+                .secret("$2a$10$rtLK3Ene/J8DotqLzZpDNennHof.tWHynYAHC/tTTewul9UbhTOM6")//admin
                 .authorizedGrantTypes("password", "authorization_code", "refresh_token")
-                .redirectUris("https://www.baidu.com")
+                //这个为true表示不用登录用户手动授权,直接通过返回code(这个主要是authorization_code的情况),false就是用户点击授权才会得到code
+                .autoApprove(false)
+                //这个是必须要的,不然就会导致跳转uri的时候出现At least one redirect_uri must be registered with the client(必须至少向客户机注册一个redirect_uri)
+                .redirectUris(applicationConfig.getRedirectUrl())
                 //有效token的有效时间
-                .accessTokenValiditySeconds(60*30)
+                .accessTokenValiditySeconds((int) TimeUnit.DAYS.toSeconds(30))
                 //刷新token的有效时间
-                .refreshTokenValiditySeconds(60*60*2);
+                .refreshTokenValiditySeconds((int) TimeUnit.DAYS.toSeconds(365));
     }
 
     @Override
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
         log.info("AuthorizationServerConfig======configure(AuthorizationServerEndpointsConfigurer endpoints)=========");
         //切记不能用new OAuth2AuthenticationManager()来用,不然就会报TokenPoint是空指针的错误
-        endpoints.authenticationManager(authenticationManagerBean());
+        endpoints.authenticationManager(authenticationManager);
         endpoints.tokenStore(tokenStore());
+        //允许通过get请求来获取token默认是post请求(当然了post请求一直都可以)
+        endpoints.allowedTokenEndpointRequestMethods(HttpMethod.GET);
         //增强token(为token添加一些额外的信息)
         TokenEnhancer tokenEnhancer = (oAuth2AccessToken, oAuth2Authentication) -> {
             DefaultOAuth2AccessToken accessToken = (DefaultOAuth2AccessToken) oAuth2AccessToken;

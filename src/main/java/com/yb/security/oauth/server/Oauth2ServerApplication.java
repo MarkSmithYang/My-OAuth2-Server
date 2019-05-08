@@ -3,9 +3,12 @@ package com.yb.security.oauth.server;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 @EnableDiscoveryClient
@@ -16,10 +19,13 @@ public class Oauth2ServerApplication {
         SpringApplication.run(Oauth2ServerApplication.class, args);
     }
 
-    //@PreAuthorize 在方法调用之前,基于表达式的计算结果来限制对方法的访问
-    @PreAuthorize("hasRole('admin')")
-    @GetMapping("/a")
-    public String a() {
-        return "a";
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+    @Bean
+    public BCryptPasswordEncoder bCryptPasswordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

@@ -14,6 +14,7 @@ import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Description: Jwt生成和解析工具
@@ -142,7 +143,14 @@ public class JwtUtils {
                     //String payload = new String(DatatypeConverter.parseBase64Binary(jwtWebToken.split("\\.")[1]));
                     String payload = new String(Base64.getDecoder().decode(jwtWebToken.split("\\.")[1]));
                     //解析荷载(封装的时候也要是JSON转的对象,才能反过来解析出来)
-                    return StringUtils.hasText(payload) ? JSON.parseObject(payload, LoginUser.class) : null;
+                    if (StringUtils.hasText(payload)) {
+                        //解析用户信息
+                        LoginUser loginUser = JSON.parseObject(payload, LoginUser.class);
+                        //如果不拥有用户名,那么登录无效
+                        if (Objects.nonNull(loginUser) && StringUtils.hasText(loginUser.getUsername())) {
+                            return loginUser;
+                        }
+                    }
                 }
             }
         }

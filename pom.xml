@@ -26,6 +26,11 @@
     </properties>
 
     <dependencies>
+        <!--用来处理配置注入类配置的-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+        </dependency>
         <!--jwt相关依赖-->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
