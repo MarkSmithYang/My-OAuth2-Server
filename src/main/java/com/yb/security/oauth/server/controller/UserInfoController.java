@@ -102,18 +102,7 @@ public class UserInfoController {
      */
     @GetMapping("/user")
     public Principal user(Principal user) {
-        System.err.println("哎呦,不错哦");
         return user;
-    }
-
-    /**
-     * 测试接口
-     *
-     * @return
-     */
-    @GetMapping("/hello")
-    public String hello() {
-        return "hello hello";
     }
 
     /**
