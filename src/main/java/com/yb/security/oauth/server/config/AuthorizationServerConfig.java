@@ -15,6 +15,11 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.A
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.ClientDetails;
+import org.springframework.security.oauth2.provider.ClientRegistrationException;
+import org.springframework.security.oauth2.provider.client.BaseClientDetails;
+import org.springframework.security.oauth2.provider.client.InMemoryClientDetailsService;
+import org.springframework.security.oauth2.provider.endpoint.TokenEndpoint;
 import org.springframework.security.oauth2.provider.token.TokenEnhancer;
 import org.springframework.security.oauth2.provider.token.TokenEnhancerChain;
 import org.springframework.security.oauth2.provider.token.TokenStore;
@@ -75,23 +80,17 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
                 .checkTokenAccess("isAuthenticated()");//验证获取Token的验证信息
     }
 
-    public static void main(String[] args) {
-        BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder();
-        String j = bCryptPasswordEncoder.encode("admin");
-        System.err.println(j);
-    }
-
     @Override
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
         log.info("AuthorizationServerConfig======configure(ClientDetailsServiceConfigurer clients)=========");
         //clients.jdbc(...)
         clients.inMemory()
+                //如果clientId不是admin就会报错----Handling error: NoSuchClientException, No client with requested id: admin
+                //原因就是因为过滤器写死了以admin作为用户名构造的安全上下文,导致认证服务器去验证的时候只找得到admin,所以其他的都得失败
                 .withClient("client")
                 .scopes("part")
                 //因为spring后面的版本必须配置加密算法,所以需要把登录密码加加密比对(实测需要加密内存里的密码)
-//                .secret("$2a$10$xdefvkbwoQ5mc34d.73WL.WIwX14rdJFFXGUIz9zk7P/FA5E29wPe")//android
-//                .secret("$2a$10$mDkWKlMzwI2Iw1lJUSNUmuzV0R.N0o3qrKPTvdqXxt.vyJ/Tykuy2")//client
-                .secret("$2a$10$rtLK3Ene/J8DotqLzZpDNennHof.tWHynYAHC/tTTewul9UbhTOM6")//admin
+                .secret("$2a$10$mDkWKlMzwI2Iw1lJUSNUmuzV0R.N0o3qrKPTvdqXxt.vyJ/Tykuy2")//client
                 .authorizedGrantTypes("password", "authorization_code", "refresh_token")
                 //这个为true表示不用登录用户手动授权,直接通过返回code(这个主要是authorization_code的情况),false就是用户点击授权才会得到code
                 .autoApprove(false)

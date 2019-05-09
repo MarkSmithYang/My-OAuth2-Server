@@ -10,6 +10,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
@@ -44,10 +45,9 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
         log.info("ResourceServerConfig======configure(HttpSecurity http)");
         http.addFilterAfter(myFilter, SecurityContextPersistenceFilter.class);
         http.exceptionHandling().authenticationEntryPoint((request, response, exception) -> response.sendRedirect("/login"));
+        http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED);
         //注意指定没有登录的重定向跳转页的接口需要放开才能正常跳转,否则报无限循环重定向错误,还需要放开登录接口的url,不然一直跳转登录页(相当于一直刷新登录页)
-        http.authorizeRequests().antMatchers("/**").permitAll()
-//        http.authorizeRequests().antMatchers("/","/login","/token","/loginAuthorize","/oauth/**").permitAll()
-//        http.authorizeRequests().antMatchers("/","/login","/userLogin","/oauth/authorize","/oauth/token").permitAll()
+        http.authorizeRequests().antMatchers("/", "/login", "/loginAuthorize", "/token", "/userLogin", "/oauth/authorize", "/oauth/token").permitAll()
                 .anyRequest().authenticated();
     }
 }

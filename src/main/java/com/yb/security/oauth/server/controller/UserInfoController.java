@@ -6,11 +6,15 @@ import com.yb.security.oauth.server.dic.JwtDic;
 import com.yb.security.oauth.server.model.LoginUser;
 import com.yb.security.oauth.server.model.UserInfo;
 import com.yb.security.oauth.server.repository.UserInfoRepository;
+import com.yb.security.oauth.server.utils.GetIpAddressUtils;
 import com.yb.security.oauth.server.utils.JwtUtils;
+import com.yb.security.oauth.server.utils.LoginUserUtils;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,9 +28,11 @@ import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.constraints.NotBlank;
+import java.io.Serializable;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.concurrent.TimeUnit;
 
 /**
  * //这个是直接跳转视图,仅需一个名称为index的html文件
@@ -49,6 +55,7 @@ public class UserInfoController {
     private final ApplicationConfig applicationConfig;
     private final UserInfoRepository userInfoRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final RedisTemplate<String, Serializable> redisTemplate;
 
     /**
      * 初始化账户信息
@@ -61,9 +68,9 @@ public class UserInfoController {
         userInfoRepository.deleteAll();
 
         UserInfo userInfoA = new UserInfo();
-        userInfoA.setUsername("admin");
+        userInfoA.setUsername("jack");
         //为密码加密
-        userInfoA.setPassword(bCryptPasswordEncoder.encode("admin"));
+        userInfoA.setPassword(bCryptPasswordEncoder.encode("jack"));
         userInfoA.setRoles(new String[]{"ROLE_ADMIN", "ROLE_USER"});
         userInfoRepository.save(userInfoA);
     }
@@ -121,17 +128,14 @@ public class UserInfoController {
 
     @GetMapping("/token")
     public JSONObject token(HttpServletRequest request) {
+        SecurityContextHolder.getContext().setAuthentication(null);
         //获取认证服务器发的授权码code
         String code = request.getParameter("code");
         //请求认证服务器的token的url
         String url = applicationConfig.getAuthUrl() + "/oauth/token?grant_type=" + applicationConfig.getGrantType() + "&client_id=" + applicationConfig.getClientId() +
                 "&client_secret=" + applicationConfig.getClientSecret() + "&redirect_uri=" + applicationConfig.getRedirectUrl() + "&code={code}";
         //其实这个就应该是服务器内部的查询,因为还有客户端申请的client_secret秘钥等信息,可以很好的避免暴露带来的安全问题
-        JSONObject jsonObject = new JSONObject();
-        //封装请求参数
-        jsonObject.put("code", code);
-        //查询数据
-        JSONObject forObject = restTemplate.postForObject(url, jsonObject, JSONObject.class,code);
+        JSONObject forObject = restTemplate.getForObject(url, JSONObject.class, code);//已经从配置把post请求改为get
         //返回认证服务器发的token信息
         return forObject;
     }
@@ -144,26 +148,38 @@ public class UserInfoController {
 
             @NotBlank(message = "用户名不能为空")
             @Length(max = 10, message = "用户名或密码错误")
-            @RequestParam String username) {
+            @RequestParam String username, HttpServletRequest request) {
         //查询用户名是否存在
         UserInfo userInfo = userInfoRepository.findByUsername(username);
         //判断并校验密码
         if (userInfo != null && bCryptPasswordEncoder.matches(password, userInfo.getPassword())) {
-            String[] roles = ArrayUtils.isNotEmpty(userInfo.getRoles()) ? userInfo.getRoles() : new String[]{""};
-            //这里不再去生成jwt的token,直接设置安全上下文
-            Authentication authentication = new UsernamePasswordAuthenticationToken(userInfo.getUsername(), "", AuthorityUtils.createAuthorityList(roles));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            //封装用户信息去生成token
+            LoginUser loginUser = new LoginUser();
+            loginUser.setUsername(userInfo.getUsername());
+            loginUser.setRoles(new HashSet<>(Arrays.asList(userInfo.getRoles())));
+            //把用户信息设置到LoginUserUtils
+            LoginUserUtils.setUser(loginUser);
+            //生成用户登录的token信息
+            String accessToken = JwtUtils.createAccessToken(loginUser, 30 * 60 * 1000, JwtDic.BASE64_ENCODE_SECRET);
+            //获取登录用户的ip地址,用来作为key,因为redis存储,用来区分不同用户,统一台电脑登录的用户只会是最后登录的用户的登录信息(因为key相同,会被覆盖)
+            String ipAddress = StringUtils.isNotBlank(GetIpAddressUtils.getIpAddress(request)) ? GetIpAddressUtils.getIpAddress(request) : "";
+            //把token信息存储到redis里去,以便过滤器处理token认证(主要是解决没有前端设置token到请求头/请求参数)
+            redisTemplate.opsForValue().set(JwtDic.ACCESS_TOKEN + ipAddress, accessToken, 30, TimeUnit.MINUTES);
             //设置模型和视图
             ModelAndView view = new ModelAndView("index");
             //请求授权码的url
             String url = applicationConfig.getAuthUrl() + "/oauth/authorize?response_type=" + applicationConfig.getResponseType() +
                     "&client_id=" + applicationConfig.getClientId() + "&redirect_uri=" + applicationConfig.getRedirectUrl();
-            view.addObject("authUrl", url);
+            //这里可以灵活的拼接url,再传递到html去
+            view.getModel().put("authUrl", url);
             //返回模型和视图
             return view;
         }
+        //设置登录失败提示
+        ModelAndView view = new ModelAndView("login");
+        view.getModel().put("fail", "用户名或密码错误");
         //返回数据
-        return new ModelAndView("login");
+        return view;
     }
 
 
@@ -194,9 +210,9 @@ public class UserInfoController {
         if (userInfo != null && bCryptPasswordEncoder.matches(password, userInfo.getPassword())) {
             //封装信息到LoginUser
             LoginUser loginUser = new LoginUser();
-            loginUser.setUsername(userInfo.getUsername());
             loginUser.setOrgName("搞笑部");
             loginUser.setJti(JwtUtils.createJti());
+            loginUser.setUsername(userInfo.getUsername());
             loginUser.setRoles(new HashSet<>(Arrays.asList(userInfo.getRoles())));
             //用户的登录信息正确,为用户生成token,秘钥和gateway-server保持一致
             String accessToken = JwtUtils.createAccessToken(loginUser, 30 * 60 * 1000, JwtDic.BASE64_ENCODE_SECRET);

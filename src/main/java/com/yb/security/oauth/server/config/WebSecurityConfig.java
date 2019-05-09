@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import javax.servlet.http.HttpServletResponse;
@@ -76,7 +77,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .exceptionHandling().authenticationEntryPoint((request, response, exception) -> response.sendError(HttpStatus.FORBIDDEN.value(), "You have no access to this resource")).and()
                 //由于这里只控制得到认证服务器相关的资源,所以仅仅放开对应需要放开的资源即可,如/oauth/token
 //                .authorizeRequests().antMatchers("/").permitAll()
-                .authorizeRequests().antMatchers("/**").permitAll()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED).and()
+                .authorizeRequests().antMatchers("/oauth/**").permitAll()
+//                .authorizeRequests().antMatchers("/oauth/token","/oauth/authorize").permitAll()
                 .anyRequest().authenticated();
     }
 

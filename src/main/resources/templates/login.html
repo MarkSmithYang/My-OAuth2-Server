@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
     <title>我的登录页面</title>
@@ -22,6 +22,11 @@
                 <tr>
                     <td>
                         <input type="submit" value="登录">
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <span style="color: red" th:text="${fail}"></span>
                     </td>
                 </tr>
             </tbody>

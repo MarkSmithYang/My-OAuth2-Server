@@ -2,18 +2,20 @@ package com.yb.security.oauth.server.filter;
 
 import com.yb.security.oauth.server.dic.JwtDic;
 import com.yb.security.oauth.server.model.LoginUser;
+import com.yb.security.oauth.server.utils.GetIpAddressUtils;
 import com.yb.security.oauth.server.utils.JwtUtils;
 import com.yb.security.oauth.server.utils.LoginUserUtils;
+import lombok.AllArgsConstructor;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextPersistenceFilter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -21,6 +23,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -55,7 +58,7 @@ import java.util.Set;
  * 使用security相关的注解,同时也会拦截认证服务器资源的url,所以需要配置security的配置类,不管是直接和认证服务器放在一起,还是自己另写一个配置类来
  * 完成security的安全设置,而且需要通过这个配置实例化一个bean,这个bean是AuthenticationManager,这个是必要的,需要通过它做很多的事情,而目前找不到
  * 其他方式实例化这个bean,只能通过继承WebSecurityConfigurerAdapter,去调用父类来帮助实例化
- *----------如果security设置了/**(放开所有url),而资源服务器设置了/(也就是拦截所有),那么访问/oauth/**相关的资源会抛出这个异常
+ * ----------如果security设置了/**(放开所有url),而资源服务器设置了/(也就是拦截所有),那么访问/oauth/**相关的资源会抛出这个异常
  * User must be authenticated with Spring Security before authorization can be completed(在完成授权之前，必须使用Spring安全性对用户进行身份验证),就是你需要先登录才能访问
  * 而去访问那些普通的接口(没有认证注解在接口方法上的),返回的是Full authentication is required to access this resource(访问此资源需要完全的身份验证)这样的错误
  * --------如果是上面的那种security是/而资源服务器是/**,请求/oauth/**相关的信息就是会是security设置的跳转或返回的提示登录的信息,不过一般不设置这个,
@@ -66,7 +69,10 @@ import java.util.Set;
  * date 2019/5/6 000615:56
  */
 @Component
+@AllArgsConstructor
 public class MyFilter extends SecurityContextPersistenceFilter {
+
+    private final RedisTemplate<String, Serializable> redisTemplate;
 
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
@@ -74,9 +80,29 @@ public class MyFilter extends SecurityContextPersistenceFilter {
         //获取请求头里的token信息
         String token = request.getHeader(JwtDic.HEADERS_NAME);
         //如果请求头不存在,则去请求参数获取
-        if (!StringUtils.hasText(token)) {
+        if (!StringUtils.isNotBlank(token)) {
             token = request.getParameter(JwtDic.ACCESS_TOKEN);
         }
+        //判断从请求里获取的token是否有效,如果为null则去redis里去获取
+        if (checkToken(token, request) == null) {
+            //获取登录用户的ip地址,用来作为key,因为redis存储,用来区分不同用户,统一台电脑登录的用户只会是最后登录的用户的登录信息(因为key相同,会被覆盖)
+            String ip = StringUtils.isNotBlank(GetIpAddressUtils.getIpAddress(request)) ? GetIpAddressUtils.getIpAddress(request) : "";
+            //为了解决每次都需要带token请求头或请求参数,这里先采用老式的方法(redis存储token)来处理用户登录信息
+            String accessToken = (String) redisTemplate.opsForValue().get(JwtDic.ACCESS_TOKEN + ip);
+            //验证并设置安全上下文
+            checkToken(accessToken, request);
+        }
+        //执行过滤
+        chain.doFilter(req, res);
+    }
+
+    /**
+     * 校验token合法性和设置安全上下文
+     *
+     * @param token
+     * @return
+     */
+    private LoginUser checkToken(String token, HttpServletRequest request) {
         //判断token是否存在,并校验其合法性,(checkAndGetPayload已经做了判空和前缀判断)
         LoginUser loginUser = JwtUtils.checkAndGetPayload(token, JwtDic.BASE64_ENCODE_SECRET);
         //判断是否能正确解析出放在荷载里的用户信息(验证签名不通过返回null)
@@ -86,22 +112,26 @@ public class MyFilter extends SecurityContextPersistenceFilter {
             //判断用户是否带有权限/角色信息
             if (!CollectionUtils.isEmpty(loginUser.getRoles())) {
                 //注意这里需要为角色添加前缀,接口认证的时候是带有前缀的,否则匹配不上
-                loginUser.getRoles().forEach(s -> roles.add(new SimpleGrantedAuthority(s.startsWith(JwtDic.SECURITY_ROLE_PREFIX )?s:JwtDic.SECURITY_ROLE_PREFIX + s)));
+                loginUser.getRoles().forEach(s -> roles.add(new SimpleGrantedAuthority(
+                        s.startsWith(JwtDic.SECURITY_ROLE_PREFIX) ? s : JwtDic.SECURITY_ROLE_PREFIX + s)));
             }
-            //设置安全上下文信息
-            Authentication authentication = new UsernamePasswordAuthenticationToken(loginUser.getUsername(), "", roles);
-            //设置安全信息到上下文中
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            //设置用户信息到LoginUserUtils里方便获取用户信息
-            LoginUserUtils.setUser(loginUser);
+            //获取请求的url的地址,例如http://localhost:9095/producer/hello?name=小明,获取到的是/producer/hello
+            String path = request.getRequestURI();//肯定不为空
+            if (!"/oauth/token".equals(path)) {
+                //这是个深坑,弄了好多天,断了好多断点去看源码,没看到问题,今日去源码找到问题所在了,当请求/oauth/token的时候,就会通过参数(Principal principal)
+                //去获取当前用户信息,然后判断是否属于Authentication,然后转换Authentication client = (Authentication) principal;然后String clientId = client.getName();
+                //然后判断 (Authentication) principal是否instanceof这个OAuth2Authentication,如果不属于那么就直接返回clientId,不然就
+                // clientId = ((OAuth2Authentication) client).getOAuth2Request().getClientId();来获取clientId,所以当请求/oauth/token的时候不能设置安全上下文
+                //所以需要在过滤器这里设置不设置安全上下文,实测不能设置上下文为null,如下,不然还是失败,因为属于OAuth2Authentication的Authentication也置空了,没clientId了
+                //SecurityContextHolder.getContext().setAuthentication(null);
+                //设置安全上下文信息
+                Authentication authentication = new UsernamePasswordAuthenticationToken(loginUser.getUsername(), "", roles);
+                //设置安全信息到上下文中
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                //设置用户信息到LoginUserUtils里方便获取用户信息
+                LoginUserUtils.setUser(loginUser);
+            }
         }
-        //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-        //这里为了方便测试,直接设置用户信息
-        //设置安全上下文信息
-        Authentication authentication = new UsernamePasswordAuthenticationToken("admin", "", AuthorityUtils.createAuthorityList("ROLE_ADMIN"));
-        //设置安全信息到上下文中
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        //过滤请求
-        chain.doFilter(req, res);
+        return loginUser;
     }
 }

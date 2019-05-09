@@ -40,7 +40,7 @@ spring:
 server-url:
   auth-url: http://localhost:9996
   redirect-url: http://localhost:9996/token
-  client-id: android
-  client-secret: android
+  client-id: client
+  client-secret: client
   grant-type: authorization_code
   response-type: code
