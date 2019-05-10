@@ -120,7 +120,7 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
             //设置额外的参数
             accessToken.setAdditionalInformation(infos);
             //设置过期时间
-            accessToken.setExpiration(new Date(System.currentTimeMillis() + 300000));
+            accessToken.setExpiration(new Date(System.currentTimeMillis() + 900000));
             //返回数据
             return accessToken;
         };

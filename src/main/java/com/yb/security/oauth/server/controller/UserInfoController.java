@@ -16,6 +16,7 @@ import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -81,7 +82,7 @@ public class UserInfoController {
      * @param username
      * @return
      */
-//    @PreAuthorize("hasRole('ADMIN')")//已验证合法性后可访问
+    @PreAuthorize("hasRole('ADMIN')")//已验证合法性后可访问--------------这个是不能设置的,因为认证服务器发的token是没有这个信息的
     @GetMapping("findByUsername")
     public UserInfo findByUsername(
             @NotBlank(message = "用户名不能为空")

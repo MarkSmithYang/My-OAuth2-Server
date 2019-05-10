@@ -89,6 +89,20 @@ public class MyFilter extends SecurityContextPersistenceFilter {
             String ip = StringUtils.isNotBlank(GetIpAddressUtils.getIpAddress(request)) ? GetIpAddressUtils.getIpAddress(request) : "";
             //为了解决每次都需要带token请求头或请求参数,这里先采用老式的方法(redis存储token)来处理用户登录信息
             String accessToken = (String) redisTemplate.opsForValue().get(JwtDic.ACCESS_TOKEN + ip);
+            //一开始的登录是用JwtUtils生成的token,是用来登录整个系统的,只有认证成功了这个才能去认证服务器收取并获取请求资源服务器资源的token,
+            //最开始的那个JwtUtils生成的token是不能获取到资源服务器的资源的,因为一你为资源配置了资源服务器的配置,就会开启OAuth2的过滤器,它会去
+            //认证服务器那里找token,并验证,如果没有发证书就会通不过验证,自然就没法获取资源,所以还需要授权并获取token,然后才能得到能访问资源服务器资源的token
+            //实测,让获得能访问资源服务器资源的token的时候,带上资源去访问,就把之前JwtUtils生成的登录的token清除,也就是过滤器也没法设置安全上下文的时候,因为过滤器
+            //能解析的token是JwtUtils生成的,它并不能解析新生成的能访问资源服务器资源的token,也就是安全上下文是空的,也能通过带上新的能访问资源服务器资源的token来访问
+            //资源服务器的资源(token有效的情况下),当然了,如果在资源的接口方法上有权限认证的话,这个就需要有指定的安全上下文信息才能认证通过,而原本不需要安全上下文就能
+            //访问的,这个资源就访问不了了,必须有指定的安全上下文信息,因为能访问资源服务器资源的token是认证服务器和资源服务器已经配置了的,会自动通过自己的过滤器去认证,
+            //所以没法通过这个能访问资源的token来生成安全上下文信息,所以就只能是JwtUtils生成的token在这个过滤器里认证并解析,并设置安全上下文信息,而那个资源的接口方法
+            //上的权限认证也只能通过这个安全上下文来认证,而我这里因为用了redis存储用来登录的token(一般不会存储在redis这种做法,基本都是放在请求(头/参数)里面的),虽然可以
+            //一个设置在请求参数里,一个设置在请求头里,然后在过滤器里分别处理---->注意:OAuth2的那个OAuth2AuthenticationProcessingFilter过滤器里会先去请求头里获取能访问
+            //资源的token,请求头的key为Authorization获取不到再去请求参数里获取token,那个key是access_token,所以如果要这样做,建议登录的token放在请求参数上,并且key不要设置
+            //为access_token,可以避免被错误的获取token,建议key为accessToken,这也符合我们平时命名,当然了也可以用redis,就像现在这样,但是不建议这么做,因为这个会增大风险并且
+            //不利于维护,一旦redis出了点状况,就挂了,设置在请求里,就不用去配置安装redis,也不用担心它挂掉,存储的东西被删除和过期等问题,而且存储token的key很难区分用户(我这里用ip还行)
+            //String accessToken = (String) redisTemplate.opsForValue().get(JwtDic.ACCESS_TOKEN + ip+"1111");
             //验证并设置安全上下文
             checkToken(accessToken, request);
         }
