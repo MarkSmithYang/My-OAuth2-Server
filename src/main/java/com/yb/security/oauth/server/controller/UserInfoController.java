@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -88,6 +89,12 @@ public class UserInfoController {
             @NotBlank(message = "用户名不能为空")
             @Length(max = 20, message = "用户名有误")
             @RequestParam String username) {
+        Authentication authentication1 = SecurityContextHolder.getContext().getAuthentication();
+        if ( authentication1 instanceof OAuth2Authentication) {
+            OAuth2Authentication authentication = (OAuth2Authentication) authentication1;
+            Object principal = authentication.getPrincipal();
+            System.err.println(principal.toString());
+        }
         //设定用户名唯一
         UserInfo result = userInfoRepository.findByUsername(username);
         //置空密码,保护敏感信息

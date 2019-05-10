@@ -65,6 +65,8 @@ import java.util.Set;
  * 因为肯定是要放开认证服务器获取code和token的url的,如果访问其他的不让其访问的资源,就直接提示它,你无权访问此资源
  * -------------------------------------这个过滤器处理的其实仅仅只是security的认证,另一个过滤器OAuth2AuthenticationProcessingFilter
  * 才是处理的才是认证服务器和资源服务器的认证的
+ * -------------------------------如果认证服务器和资源服务器是分离的话,资源服务器里的接口方法如果加了认证注解,那么就需要引入security的东西,然后又会出现
+ * security拦住url的问题,所以分开的时候建议加注解来认证,而是通过获取上下文信息来认证,自己写代码认证
  * author biaoyang
  * date 2019/5/6 000615:56
  */
@@ -73,6 +75,7 @@ import java.util.Set;
 public class MyFilter extends SecurityContextPersistenceFilter {
 
     private final RedisTemplate<String, Serializable> redisTemplate;
+
 
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
@@ -144,6 +147,11 @@ public class MyFilter extends SecurityContextPersistenceFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 //设置用户信息到LoginUserUtils里方便获取用户信息
                 LoginUserUtils.setUser(loginUser);
+            }else {
+                //这个实测是上下文里的username是client,也就是客户端的信息,不是认证服务器设置的tom,也不是登录的jack
+                //所以可以试着去源码看看如何获取到认证服务器发的token的用户权限(认证服务器设置)等信息,然后即使资源服务器分离了也可以做接口方法的认证
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                System.err.println(authentication.getPrincipal().toString());
             }
         }
         return loginUser;

@@ -115,7 +115,7 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
             DefaultOAuth2AccessToken accessToken = (DefaultOAuth2AccessToken) oAuth2AccessToken;
             Map<String, Object> infos = new HashMap<>(10);
             //实测这个数据是和token和refresh_token是同级的,也就是没有在jwt的荷载里
-            infos.put("username", "jack");
+            infos.put("username", "tom");
             infos.put("jti", UUID.randomUUID().toString().replaceAll("-", ""));
             //设置额外的参数
             accessToken.setAdditionalInformation(infos);
